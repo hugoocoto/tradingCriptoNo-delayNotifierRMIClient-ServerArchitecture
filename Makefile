@@ -9,7 +9,6 @@ clean:
 	rm state
 
 run_servidor: state
-	java -cp "bin" -cp "lib/jsoup-1.21.2.jar:." Servidor
+	java -cp "bin:lib/jsoup-1.21.2.jar:." Servidor
 
-run_cliente: state
-	java -cp "bin" -cp "lib/jsoup-1.21.2.jar:."  UI
+run: run_servidor
