@@ -1,44 +1,45 @@
-import java.io.IOException;
-
-import javax.swing.SpringLayout;
-
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.List;
 
 public class Parser {
     private String BOLSA_URL = "https://www.bolsasymercados.es/bme-exchange/es/Mercados-y-Cotizaciones/Acciones/Mercado-Continuo/Precios/ibex-35-ES0SI0000005";
+    private HashMap<String, Float> acciones = new HashMap<>();
+    private WebDriver driver;
 
-    public void parse() {
+    public void close() {
+        driver.close();
+    }
+
+    public HashMap<String, Float> parse() {
         // Conecta a la página o carga HTML desde un String
-        Document doc;
-        try {
-            doc = Jsoup.connect(BOLSA_URL).get();
-
-            /* Creo que no carga la tabla porque usa javascript para generarla y
-             * no esta en el html base */
-
-            // Selecciona el tbody de la tabla
-            Element tbody = doc.selectFirst(
-                    "html.wrvcuatd.idc0_350 body#se_top main#main-content.Contenido div.container div.row div.col-sm-12 div#root div.table-responsive table.shares-table");
-
-            if (tbody != null) {
-                // Itera por cada fila
-                Elements filas = tbody.select("tr");
-                for (Element fila : filas) {
-                    // Itera por cada celda de la fila
-                    Elements celdas = fila.select("td");
-                    for (Element celda : celdas) {
-                        System.out.print(celda.text() + " | ");
-                    }
-                    System.out.println();
-                }
-            } else {
-                System.out.println("No se encontró la tabla");
-            }
-        } catch (IOException e) {
-            System.out.println(e);
+        if (driver == null) {
+            driver = new ChromeDriver();
+            driver.get(BOLSA_URL);
         }
+
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        WebElement tabla = wait.until(
+                ExpectedConditions.visibilityOfElementLocated(
+                        By.xpath("/html/body/main/div/div/div/div[2]/div[5]/table")));
+
+        for (WebElement fila : tabla.findElements(By.xpath(".//tbody/tr"))) {
+            List<WebElement> celdas = fila.findElements(By.tagName("td"));
+            try {
+                acciones.put(
+                        celdas.get(0).getText(),
+                        Float.parseFloat(celdas.get(1).getText().replace(",", ".")));
+            } catch (Exception e) {
+                System.out.println("Can not parse `" + celdas.get(1).getText() + "` as Float");
+            }
+        }
+
+        return acciones;
     }
 }
