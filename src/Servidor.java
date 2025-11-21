@@ -6,6 +6,7 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 
 public class Servidor extends UnicastRemoteObject implements IServidor {
 
@@ -26,6 +27,7 @@ public class Servidor extends UnicastRemoteObject implements IServidor {
     private ArrayList<Alert> buyAlerts;
     private ArrayList<Alert> sellAlerts;
     private static final int RMI_PORT = 1099;
+    private static final Integer WAIT_INTERVAL = 60; // seconds
 
     public void start() {
         mainloop();
@@ -38,7 +40,7 @@ public class Servidor extends UnicastRemoteObject implements IServidor {
             print();
             check_notifications();
             try {
-                wait(1000 * 10);
+                wait(1000 * WAIT_INTERVAL);
             } catch (Exception e) {
             }
         }
@@ -56,28 +58,36 @@ public class Servidor extends UnicastRemoteObject implements IServidor {
     }
 
     public void check_sell_notifications() {
-        for (Alert a : sellAlerts) {
-            if (prices.get(a.name) >= a.price) {
+        Iterator<Alert> iter = sellAlerts.iterator();
+        while (iter.hasNext()) {
+            Alert a = iter.next();
+            if (prices.get(a.name) == null) {
+                iter.remove();
+            } else if (prices.get(a.name) >= a.price) {
                 try {
-                    a.client.NotifyBuyAlert(a.name, a.price);
+                    a.client.NotifySellAlert(a.name, a.price);
                 } catch (RemoteException e) {
                     System.out.println(e);
                 } finally {
-                    buyAlerts.remove(a);
+                    iter.remove();
                 }
             }
         }
     }
 
     public void check_buy_notifications() {
-        for (Alert a : buyAlerts) {
-            if (prices.get(a.name) <= a.price) {
+        Iterator<Alert> iter = buyAlerts.iterator();
+        while (iter.hasNext()) {
+            Alert a = iter.next();
+            if (prices.get(a.name) == null) {
+                iter.remove();
+            } else if (prices.get(a.name) <= a.price) {
                 try {
                     a.client.NotifyBuyAlert(a.name, a.price);
                 } catch (RemoteException e) {
                     System.out.println(e);
                 } finally {
-                    buyAlerts.remove(a);
+                    iter.remove();
                 }
             }
         }
@@ -86,7 +96,9 @@ public class Servidor extends UnicastRemoteObject implements IServidor {
     @Override
     public void addBuyAlert(String address, String accion, Float price) throws RemoteException {
         try {
-            buyAlerts.add(new Alert(accion, price, (ICliente) Naming.lookup(address)));
+            synchronized (buyAlerts) {
+                buyAlerts.add(new Alert(accion, price, (ICliente) Naming.lookup(address)));
+            }
         } catch (Exception e) {
         }
     }
@@ -147,7 +159,8 @@ public class Servidor extends UnicastRemoteObject implements IServidor {
             servidor.start();
 
         } catch (Exception e) {
-            System.out.println("Error iniciando servidor: " + e);
+            System.out.println(e);
+            e.printStackTrace();
         }
     }
 }

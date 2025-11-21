@@ -2,6 +2,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import java.time.Duration;
@@ -20,10 +21,11 @@ public class Parser {
     public HashMap<String, Float> parse() {
         // Conecta a la página o carga HTML desde un String
         if (driver == null) {
-            driver = new ChromeDriver();
+            ChromeOptions options = new ChromeOptions();
+            options.addArguments("--headless=new");
+            driver = new ChromeDriver(options);
             driver.get(BOLSA_URL);
         }
-
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
         WebElement tabla = wait.until(
                 ExpectedConditions.visibilityOfElementLocated(

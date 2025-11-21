@@ -11,12 +11,14 @@ public class Cliente extends UnicastRemoteObject implements ICliente {
     private final static String SERVER_HOST = "localhost";
     private final static Integer SERVER_PORT = 1099;
     private IServidor servidor;
+    private String address;
 
-    private Integer puerto = 1100;
+    private Integer puerto;
     private ArrayList<String> notifications;
 
-    public Cliente() throws RemoteException {
+    public Cliente(Integer port) throws RemoteException {
         super();
+        puerto = port;
         notifications = new ArrayList<>();
         servir(this, puerto);
         if (!connect()) {
@@ -41,8 +43,8 @@ public class Cliente extends UnicastRemoteObject implements ICliente {
 
         try {
             startRegistry(puerto);
-            String registryURL = "rmi://localhost:" + puerto + "/Cliente";
-            Naming.rebind(registryURL, cliente);
+            address = "rmi://localhost:" + puerto + "/Cliente";
+            Naming.rebind(address, cliente);
         } catch (Exception e) {
             System.out.println("servir: " + e);
         }
@@ -67,31 +69,50 @@ public class Cliente extends UnicastRemoteObject implements ICliente {
 
     @Override
     public void NotifyBuyAlert(String accion, Float price) throws RemoteException {
-        notifications.add("BUY! " + accion + "is at " + price + "!");
-        notifyAll();
+        synchronized (notifications) {
+            notifications.add("BUY! " + accion + " is at " + price + "€!");
+        }
+        synchronized (this) {
+            notifyAll();
+        }
     }
 
     @Override
     public void NotifySellAlert(String accion, Float price) throws RemoteException {
-        notifications.add("SELL! " + accion + "is at " + price + "!");
-        notifyAll();
-    }
-
-    public static void main(String[] args) {
-        try {
-            Integer port = 1100;
-            java.rmi.registry.LocateRegistry.createRegistry(port);
-            Cliente cliente = new Cliente();
-            Naming.rebind("Cliente", cliente);
-            System.out.println("Servidor RMI listo en puerto " + port);
-            cliente.start();
-
-        } catch (Exception e) {
-            System.out.println("Error iniciando cliente: " + e);
+        synchronized (notifications) {
+            notifications.add("SELL! " + accion + " is at " + price + "€!");
+        }
+        synchronized (this) {
+            notifyAll();
         }
     }
 
     public ArrayList<String> getNotifications() {
-        return notifications;
+        return new ArrayList<>(notifications);
+    }
+
+    public void writeNotification(String s) {
+        synchronized (notifications) {
+            notifications.add(s);
+        }
+        synchronized (this) {
+            notifyAll();
+        }
+    }
+
+    public void addBuyAlert(String name, Float price) {
+        try {
+            servidor.addBuyAlert(address, name, price);
+        } catch (RemoteException e) {
+            System.out.println(e);
+        }
+    }
+
+    public void addSellAlert(String name, Float price) {
+        try {
+            servidor.addSellAlert(address, name, price);
+        } catch (RemoteException e) {
+            System.out.println(e);
+        }
     }
 }
